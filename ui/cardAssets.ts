@@ -1,0 +1,60 @@
+import { ICard } from "../types/cards";
+import { Rank, Suit } from "../types/enums";
+
+/**
+ * URL for the shared card-back SVG asset.
+ */
+export const CARD_BACK_ASSET_URL = new URL("./assets/cards/2B.svg", import.meta.url).href;
+
+/**
+ * Returns the SVG asset URL for one visible card.
+ *
+ * @param card - Card to map to an SVG asset.
+ * @returns Browser-resolvable SVG URL for the card.
+ * @sideEffects None.
+ */
+export function getCardAssetUrl(card: ICard): string {
+    return new URL(`./assets/cards/${getCardAssetFileName(card)}`, import.meta.url).href;
+}
+
+/**
+ * Returns the SVG file name for one visible card.
+ *
+ * @param card - Card to map to the local asset naming convention.
+ * @returns SVG file name using rank prefix and suit suffix.
+ * @sideEffects None.
+ */
+export function getCardAssetFileName(card: ICard): string {
+    return `${getRankAssetCode(card.rank)}${getSuitAssetCode(card.suit)}.svg`;
+}
+
+/**
+ * Returns the rank code used by the SVG card assets.
+ *
+ * @param rank - Euchre card rank.
+ * @returns Single-character rank asset code.
+ * @sideEffects None.
+ */
+function getRankAssetCode(rank: Rank): string {
+    return rank === Rank.Ten ? "T" : rank;
+}
+
+/**
+ * Returns the suit code used by the SVG card assets.
+ *
+ * @param suit - Card suit.
+ * @returns Single-character suit asset code.
+ * @sideEffects None.
+ */
+function getSuitAssetCode(suit: Suit): string {
+    switch (suit) {
+        case Suit.Hearts:
+            return "H";
+        case Suit.Diamonds:
+            return "D";
+        case Suit.Clubs:
+            return "C";
+        case Suit.Spades:
+            return "S";
+    }
+}

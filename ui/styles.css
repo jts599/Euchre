@@ -1,0 +1,513 @@
+:root {
+    background: #101511;
+    color: #17201a;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.4;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 320px;
+}
+
+button {
+    background: #ffffff;
+    border: 1px solid #2e5d43;
+    border-radius: 6px;
+    color: #173522;
+    cursor: pointer;
+    font: inherit;
+    min-height: 40px;
+    padding: 8px 12px;
+}
+
+button:hover:not(:disabled) {
+    background: #e1f0e6;
+}
+
+button:focus-visible {
+    outline: 3px solid rgba(57, 120, 82, 0.35);
+    outline-offset: 2px;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.app-shell {
+    min-height: 100vh;
+    padding: 14px;
+}
+
+.table-layout {
+    display: grid;
+    min-height: calc(100vh - 28px);
+}
+
+.debug-layout .table-layout {
+    align-items: stretch;
+    gap: 14px;
+    grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+}
+
+.table-surface {
+    background:
+        radial-gradient(circle at center, rgba(78, 136, 90, 0.92), rgba(42, 92, 61, 0.96) 60%, rgba(28, 61, 43, 0.98)),
+        #386849;
+    border: 1px solid #254d36;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 18px 36px rgba(0, 0, 0, 0.24);
+    display: grid;
+    gap: 14px;
+    grid-template-areas:
+        "chrome chrome chrome"
+        "handScore partner gameScore"
+        "left trick right"
+        ". self .";
+    grid-template-columns: minmax(140px, 0.78fr) minmax(280px, 1.55fr) minmax(140px, 0.78fr);
+    grid-template-rows: auto auto minmax(250px, 1fr) auto;
+    min-height: calc(100vh - 28px);
+    overflow: hidden;
+    padding: 14px;
+    position: relative;
+}
+
+.debug-layout .table-surface {
+    min-height: calc(100vh - 28px);
+}
+
+.empty-table,
+.terminal-table {
+    grid-template-areas:
+        "chrome chrome chrome"
+        ". message .";
+    grid-template-rows: auto 1fr;
+}
+
+.table-message {
+    align-self: center;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 8px;
+    grid-area: message;
+    justify-self: center;
+    max-width: 420px;
+    padding: 20px;
+    text-align: center;
+}
+
+.table-message h1,
+.table-message p {
+    margin: 0;
+}
+
+.table-message p {
+    margin-top: 8px;
+}
+
+.table-chrome {
+    align-items: center;
+    color: #ffffff;
+    display: flex;
+    gap: 12px;
+    grid-area: chrome;
+    justify-content: space-between;
+    min-width: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
+}
+
+.table-chrome h1,
+.debug-state-card h2 {
+    margin: 0;
+}
+
+.table-chrome p {
+    color: rgba(255, 255, 255, 0.82);
+    margin: 2px 0 0;
+}
+
+.score-overlay {
+    align-self: start;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 8px;
+    min-width: 0;
+    padding: 10px;
+}
+
+.hand-score-overlay {
+    grid-area: handScore;
+}
+
+.game-score-overlay {
+    grid-area: gameScore;
+}
+
+.score-title {
+    color: #5f6f64;
+    display: block;
+    font-size: 0.84rem;
+    margin-bottom: 8px;
+}
+
+.score-pair {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 1fr;
+}
+
+.score-pill {
+    border-radius: 7px;
+    color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 8px;
+}
+
+.score-pill span {
+    font-size: 0.74rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.score-pill strong {
+    font-size: 1.55rem;
+    line-height: 1;
+}
+
+.team-score-blue {
+    background: #2364b5;
+}
+
+.team-score-red {
+    background: #b9383e;
+}
+
+.seat-panel,
+.self-seat,
+.trick-center {
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(255, 255, 255, 0.42);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.seat-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+}
+
+.current-turn {
+    box-shadow: 0 0 0 3px rgba(255, 230, 132, 0.82);
+}
+
+.seat-partner {
+    grid-area: partner;
+}
+
+.seat-left {
+    grid-area: left;
+}
+
+.seat-right {
+    grid-area: right;
+}
+
+.self-seat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    grid-area: self;
+}
+
+.trick-center {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    grid-area: trick;
+    justify-content: center;
+    min-width: 0;
+}
+
+.table-status {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.trick-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-areas:
+        ". partner ."
+        "left . right"
+        ". self .";
+    grid-template-columns: 1fr 1fr 1fr;
+    min-height: 210px;
+}
+
+.trick-slot {
+    align-items: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    justify-content: center;
+    min-width: 0;
+}
+
+.trick-slot.seat-partner {
+    grid-area: partner;
+}
+
+.trick-slot.seat-left {
+    grid-area: left;
+}
+
+.trick-slot.seat-right {
+    grid-area: right;
+}
+
+.trick-slot.seat-self {
+    grid-area: self;
+}
+
+.empty-card-slot {
+    aspect-ratio: 5 / 7;
+    border: 1px dashed rgba(23, 32, 26, 0.28);
+    border-radius: 6px;
+    display: block;
+    width: 54px;
+}
+
+.seat-label-row {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.seat-label-row span,
+.eyebrow,
+.trick-slot span {
+    color: #5f6f64;
+    font-size: 0.86rem;
+}
+
+.card-row,
+.back-row,
+.button-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.card-row {
+    align-items: flex-end;
+}
+
+.back-row {
+    min-height: 56px;
+}
+
+.sideways-backs {
+    align-items: center;
+    min-height: 96px;
+}
+
+.sideways-backs .card-back {
+    margin-bottom: -44px;
+    margin-right: 0;
+    transform: rotate(90deg);
+}
+
+.playing-card {
+    aspect-ratio: 5 / 7;
+    border-radius: 7px;
+    box-shadow: 0 2px 6px rgba(16, 24, 18, 0.16);
+    display: block;
+    height: auto;
+    width: clamp(58px, 8vw, 90px);
+}
+
+.small-card {
+    width: clamp(42px, 5vw, 62px);
+}
+
+.medium-card {
+    width: clamp(72px, 10vw, 104px);
+}
+
+.card-back {
+    margin-right: -18px;
+}
+
+.playing-card.legal-card {
+    box-shadow: 0 0 0 3px rgba(255, 224, 102, 0.9), 0 4px 10px rgba(16, 24, 18, 0.2);
+    transform: translateY(-4px);
+}
+
+.playing-card-button {
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    min-height: auto;
+    padding: 0;
+}
+
+.playing-card-button:hover:not(:disabled) {
+    background: transparent;
+}
+
+.playing-card-button:hover .playing-card,
+.playing-card-button:focus-visible .playing-card {
+    box-shadow: 0 0 0 3px rgba(57, 120, 82, 0.55), 0 4px 10px rgba(16, 24, 18, 0.22);
+    transform: translateY(-4px);
+}
+
+.decision-controls {
+    background: #f9fbf8;
+    border: 1px solid #dbe7dc;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.decision-controls p {
+    margin: 0;
+}
+
+.decision-controls.active {
+    border-color: #2e5d43;
+    box-shadow: 0 0 0 2px rgba(46, 93, 67, 0.14);
+}
+
+.decision-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.decision-card {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+}
+
+.debug-state-card {
+    align-self: stretch;
+    background: #ffffff;
+    border: 1px solid #c9d8ca;
+    border-radius: 8px;
+    overflow: auto;
+    padding: 16px;
+}
+
+.debug-state-card dl {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 14px 0 0;
+}
+
+.debug-row {
+    border-top: 1px solid #edf2ee;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding-top: 8px;
+}
+
+.debug-row dt {
+    color: #5f6f64;
+}
+
+.debug-row dd {
+    font-weight: 700;
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+}
+
+.error {
+    background: #fff2f2;
+    border: 1px solid #d77a7a;
+    border-radius: 8px;
+    color: #8d1f1f;
+    margin: 0 0 12px;
+    padding: 10px 12px;
+}
+
+@media (max-width: 900px) {
+    .debug-layout .table-layout {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .table-surface {
+        grid-template-areas:
+            "chrome"
+            "handScore"
+            "gameScore"
+            "partner"
+            "trick"
+            "left"
+            "right"
+            "self";
+        grid-template-columns: 1fr;
+        grid-template-rows: auto;
+        min-height: calc(100vh - 28px);
+    }
+
+    .empty-table,
+    .terminal-table {
+        grid-template-areas:
+            "chrome"
+            "message";
+    }
+
+    .trick-grid {
+        min-height: 190px;
+    }
+}
+
+@media (max-width: 620px) {
+    .app-shell {
+        padding: 10px;
+    }
+
+    .table-layout,
+    .table-surface,
+    .debug-layout .table-surface {
+        min-height: calc(100vh - 20px);
+    }
+
+    .table-chrome {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .score-pair {
+        grid-template-columns: 1fr;
+    }
+
+    .playing-card {
+        width: clamp(52px, 18vw, 72px);
+    }
+
+    .small-card {
+        width: clamp(38px, 13vw, 54px);
+    }
+
+    .decision-card {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
