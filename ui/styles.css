@@ -15,10 +15,10 @@ body {
 }
 
 button {
-    background: #ffffff;
-    border: 1px solid #2e5d43;
+    background: rgba(14, 33, 22, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 6px;
-    color: #173522;
+    color: #ffffff;
     cursor: pointer;
     font: inherit;
     min-height: 40px;
@@ -26,7 +26,7 @@ button {
 }
 
 button:hover:not(:disabled) {
-    background: #e1f0e6;
+    background: rgba(37, 83, 55, 0.84);
 }
 
 button:focus-visible {
@@ -65,11 +65,11 @@ button:disabled {
     display: grid;
     gap: 14px;
     grid-template-areas:
-        "chrome chrome chrome"
+        "handScore partner chrome"
         "handScore partner gameScore"
         "left trick right"
         ". self .";
-    grid-template-columns: minmax(140px, 0.78fr) minmax(280px, 1.55fr) minmax(140px, 0.78fr);
+    grid-template-columns: minmax(92px, 0.42fr) minmax(360px, 1.9fr) minmax(92px, 0.42fr);
     grid-template-rows: auto auto minmax(250px, 1fr) auto;
     min-height: calc(100vh - 28px);
     overflow: hidden;
@@ -111,33 +111,24 @@ button:disabled {
 }
 
 .table-chrome {
-    align-items: center;
-    color: #ffffff;
+    align-items: start;
     display: flex;
-    gap: 12px;
     grid-area: chrome;
-    justify-content: space-between;
+    justify-content: end;
     min-width: 0;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
 }
 
-.table-chrome h1,
 .debug-state-card h2 {
     margin: 0;
 }
 
-.table-chrome p {
-    color: rgba(255, 255, 255, 0.82);
-    margin: 2px 0 0;
-}
-
 .score-overlay {
     align-self: start;
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.42);
-    border-radius: 8px;
+    color: #ffffff;
+    justify-self: start;
     min-width: 0;
-    padding: 10px;
+    padding: 4px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.28);
 }
 
 .hand-score-overlay {
@@ -146,35 +137,24 @@ button:disabled {
 
 .game-score-overlay {
     grid-area: gameScore;
-}
-
-.score-title {
-    color: #5f6f64;
-    display: block;
-    font-size: 0.84rem;
-    margin-bottom: 8px;
+    justify-self: end;
 }
 
 .score-pair {
     display: grid;
-    gap: 8px;
+    gap: 6px;
     grid-template-columns: 1fr 1fr;
 }
 
 .score-pill {
-    border-radius: 7px;
+    align-items: center;
+    border-radius: 6px;
     color: #ffffff;
     display: flex;
-    flex-direction: column;
-    min-width: 0;
-    padding: 8px;
-}
-
-.score-pill span {
-    font-size: 0.74rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    justify-content: center;
+    min-height: 42px;
+    min-width: 42px;
+    padding: 8px 10px;
 }
 
 .score-pill strong {
@@ -193,21 +173,16 @@ button:disabled {
 .seat-panel,
 .self-seat,
 .trick-center {
-    background: rgba(255, 255, 255, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.42);
-    border-radius: 8px;
-    padding: 12px;
+    min-width: 0;
+    padding: 4px;
+    position: relative;
 }
 
 .seat-panel {
+    align-items: center;
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-width: 0;
-}
-
-.current-turn {
-    box-shadow: 0 0 0 3px rgba(255, 230, 132, 0.82);
+    justify-content: center;
 }
 
 .seat-partner {
@@ -223,9 +198,9 @@ button:disabled {
 }
 
 .self-seat {
+    align-items: center;
     display: flex;
     flex-direction: column;
-    gap: 10px;
     grid-area: self;
 }
 
@@ -235,13 +210,15 @@ button:disabled {
     gap: 14px;
     grid-area: trick;
     justify-content: center;
-    min-width: 0;
 }
 
 .table-status {
+    color: #ffffff;
     display: flex;
     flex-direction: column;
     gap: 2px;
+    text-align: center;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.32);
 }
 
 .trick-grid {
@@ -282,24 +259,56 @@ button:disabled {
 
 .empty-card-slot {
     aspect-ratio: 5 / 7;
-    border: 1px dashed rgba(23, 32, 26, 0.28);
+    border: 1px dashed rgba(255, 255, 255, 0.48);
     border-radius: 6px;
     display: block;
-    width: 54px;
+    width: clamp(52px, 6vw, 74px);
 }
 
-.seat-label-row {
-    align-items: center;
+.seat-chips {
     display: flex;
-    gap: 12px;
-    justify-content: space-between;
+    gap: 6px;
+    left: 50%;
+    pointer-events: none;
+    position: absolute;
+    top: -4px;
+    transform: translate(-50%, -100%);
+    z-index: 2;
 }
 
-.seat-label-row span,
-.eyebrow,
-.trick-slot span {
-    color: #5f6f64;
+.side-seat-chips {
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(90deg) translateY(-58px);
+    transform-origin: center;
+}
+
+.table-chip {
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(10, 15, 11, 0.26);
+    color: #231a05;
+    display: inline-flex;
     font-size: 0.86rem;
+    font-weight: 800;
+    line-height: 1;
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+
+.dealer-chip {
+    background: linear-gradient(180deg, #ffe68b, #d9a922);
+    border: 1px solid #9f7611;
+}
+
+.trump-chip {
+    background: linear-gradient(180deg, #f7fbf5, #cfe2c9);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    color: #173522;
+}
+
+.eyebrow {
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.82rem;
 }
 
 .card-row,
@@ -307,7 +316,7 @@ button:disabled {
 .button-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
 }
 
 .card-row {
@@ -315,16 +324,19 @@ button:disabled {
 }
 
 .back-row {
-    min-height: 56px;
+    min-height: 72px;
 }
 
 .sideways-backs {
     align-items: center;
-    min-height: 96px;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    min-height: clamp(220px, 34vh, 310px);
+    width: clamp(70px, 8vw, 100px);
 }
 
 .sideways-backs .card-back {
-    margin-bottom: -44px;
+    margin-bottom: -30px;
     margin-right: 0;
     transform: rotate(90deg);
 }
@@ -335,15 +347,15 @@ button:disabled {
     box-shadow: 0 2px 6px rgba(16, 24, 18, 0.16);
     display: block;
     height: auto;
-    width: clamp(58px, 8vw, 90px);
+    width: clamp(68px, 9vw, 112px);
 }
 
 .small-card {
-    width: clamp(42px, 5vw, 62px);
+    width: clamp(54px, 6vw, 78px);
 }
 
 .medium-card {
-    width: clamp(72px, 10vw, 104px);
+    width: clamp(84px, 11vw, 124px);
 }
 
 .card-back {
@@ -353,6 +365,21 @@ button:disabled {
 .playing-card.legal-card {
     box-shadow: 0 0 0 3px rgba(255, 224, 102, 0.9), 0 4px 10px rgba(16, 24, 18, 0.2);
     transform: translateY(-4px);
+}
+
+.playing-card.disabled-card {
+    filter: grayscale(0.9) brightness(0.58);
+    opacity: 0.58;
+    transform: none;
+}
+
+.current-turn-glow {
+    filter: drop-shadow(0 0 10px rgba(255, 226, 108, 0.95));
+}
+
+.card-row.current-turn-glow,
+.back-row.current-turn-glow {
+    filter: drop-shadow(0 0 12px rgba(255, 226, 108, 0.9));
 }
 
 .playing-card-button {
@@ -373,11 +400,19 @@ button:disabled {
     transform: translateY(-4px);
 }
 
+.playing-card-button:disabled .playing-card,
+.playing-card-button:disabled:hover .playing-card {
+    box-shadow: 0 2px 6px rgba(16, 24, 18, 0.16);
+    transform: none;
+}
+
 .decision-controls {
-    background: #f9fbf8;
-    border: 1px solid #dbe7dc;
+    background: rgba(14, 33, 22, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     border-radius: 8px;
+    color: #ffffff;
     padding: 10px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .decision-controls p {
@@ -385,8 +420,8 @@ button:disabled {
 }
 
 .decision-controls.active {
-    border-color: #2e5d43;
-    box-shadow: 0 0 0 2px rgba(46, 93, 67, 0.14);
+    border-color: rgba(255, 226, 108, 0.76);
+    box-shadow: 0 0 0 2px rgba(255, 226, 108, 0.2);
 }
 
 .decision-content {

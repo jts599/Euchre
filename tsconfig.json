@@ -12,5 +12,14 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["game/**/*.ts", "players/**/*.ts", "types/**/*.ts", "tests/**/*.ts", "ui/**/*.ts", "ui/**/*.tsx", "vite.config.ts"]
+  "include": [
+    "game/**/*.ts",
+    "players/**/*.ts",
+    "types/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "ui/**/*.ts",
+    "ui/**/*.tsx",
+    "vite.config.ts"
+  ]
 }

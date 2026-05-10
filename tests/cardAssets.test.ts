@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { ICard } from "../types/cards";
 import { Rank, Suit } from "../types/enums";
-import { CARD_BACK_ASSET_URL, getCardAssetFileName, getCardAssetUrl } from "../ui/cardAssets";
+import {
+    OPPONENT_CARD_BACK_ASSET_URL,
+    TEAMMATE_CARD_BACK_ASSET_URL,
+    getCardAssetFileName,
+    getCardAssetUrl
+} from "../ui/cardAssets";
 
 const RANK_CASES: ReadonlyArray<{ rank: Rank; code: string }> = [
     { rank: Rank.Nine, code: "9" },
@@ -33,8 +38,9 @@ describe("card assets", () => {
         }
     });
 
-    it("returns URL values for visible cards and the shared card back", () => {
+    it("returns URL values for visible cards and team card backs", () => {
         expect(getCardAssetUrl({ rank: Rank.Ten, suit: Suit.Hearts })).toContain("TH.svg");
-        expect(CARD_BACK_ASSET_URL).toContain("2B.svg");
+        expect(OPPONENT_CARD_BACK_ASSET_URL).toContain("2B.svg");
+        expect(TEAMMATE_CARD_BACK_ASSET_URL).toContain("2B-blue.svg");
     });
 });

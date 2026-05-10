@@ -7,6 +7,8 @@ import { IPlayer } from "../types/player";
 import { HumanPlayerController } from "./HumanPlayerController";
 import { HumanPlayerView } from "./HumanPlayerView";
 
+const DEMO_TARGET_SCORE = 10;
+
 /**
  * Root React component for the local Euchre demo.
  *
@@ -50,7 +52,7 @@ async function startDemoGame(controller: HumanPlayerController): Promise<void> {
 
     try {
         await runGame(players, {
-            config: { targetScore: 1, stickTheDealer: true },
+            config: { targetScore: DEMO_TARGET_SCORE, stickTheDealer: true },
             playerObservers: {
                 [PositionalPlayer.South]: controller
             }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { ICard, IPlayedCard } from "../types/cards";
-import { Player, Suit } from "../types/enums";
+import { Player, Rank, Suit } from "../types/enums";
 import { GamePhasePublic, IGameStatePublic, Team } from "../types/gameState";
 import { IHandStatePublic } from "../types/handState";
 import { ICompletedTrickPublic } from "../types/trickState";
-import { CARD_BACK_ASSET_URL, getCardAssetUrl } from "./cardAssets";
+import { OPPONENT_CARD_BACK_ASSET_URL, TEAMMATE_CARD_BACK_ASSET_URL, getCardAssetUrl } from "./cardAssets";
 import { HumanPlayerController, HumanPlayerDecision } from "./HumanPlayerController";
 import { useHumanPlayerController } from "./useHumanPlayerController";
 
@@ -23,6 +23,26 @@ const TABLE_PLAYERS: readonly Player[] = [
 ];
 
 const DEFAULT_HUMAN_TEAM = Team.NorthSouth;
+const DISPLAY_SUIT_ORDER: Readonly<Record<Suit, number>> = {
+    [Suit.Hearts]: 0,
+    [Suit.Diamonds]: 1,
+    [Suit.Clubs]: 2,
+    [Suit.Spades]: 3
+};
+const DISPLAY_RANK_ORDER: Readonly<Record<Rank, number>> = {
+    [Rank.Nine]: 0,
+    [Rank.Ten]: 1,
+    [Rank.Jack]: 2,
+    [Rank.Queen]: 3,
+    [Rank.King]: 4,
+    [Rank.Ace]: 5
+};
+
+type HandInteraction =
+    | { kind: "display" }
+    | { kind: "discard"; onChoose: (card: ICard) => void }
+    | { kind: "play"; legalCards: readonly ICard[]; onChoose: (card: ICard) => void };
+type PromptDecision = Extract<HumanPlayerDecision, { kind: "OrderTrump" | "ChooseTrump" }>;
 
 /**
  * Props for the human player view.
@@ -95,7 +115,7 @@ export function HumanPlayerView({
 function EmptyTable({ onNewGame }: { onNewGame: (() => void) | undefined }): ReactElement {
     return (
         <section className="table-surface empty-table" aria-label="Euchre table">
-            <TableChrome phaseLabel="Waiting for game state" onNewGame={onNewGame} />
+            <TableChrome onNewGame={onNewGame} />
             <div className="table-message">
                 <h1>Euchre</h1>
                 <p>No public state has been received yet.</p>
@@ -165,7 +185,7 @@ function TerminalState({
 
     return (
         <section className="table-surface terminal-table" aria-label="Euchre table">
-            <TableChrome phaseLabel={getPhaseLabel(state.phase)} onNewGame={onNewGame} />
+            <TableChrome onNewGame={onNewGame} />
             <div className="table-message">
                 <h1>Game complete</h1>
                 {phase.kind === "GameComplete" ? (
@@ -202,20 +222,19 @@ function TableView({
     onNewGame: (() => void) | undefined;
 }): ReactElement {
     const plays = getCurrentTrickPlays(state.phase);
+    const handInteraction = getHandInteraction(decision, controller);
 
     return (
         <section className="table-surface" aria-label="Euchre table">
-            <TableChrome phaseLabel={getPhaseLabel(state.phase)} onNewGame={onNewGame} />
+            <TableChrome onNewGame={onNewGame} />
             <ScoreOverlay
                 ariaLabel="Hand score"
                 className="hand-score-overlay"
-                label="Hand"
                 score={getHandScore(state.phase, hand)}
             />
             <ScoreOverlay
                 ariaLabel="Game score"
                 className="game-score-overlay"
-                label="Game"
                 score={getTeamScore(state.score, humanTeam)}
             />
             <SeatPanel player={Player.Partner} hand={hand} state={state} />
@@ -228,42 +247,43 @@ function TableView({
                 </div>
                 <div className="trick-grid">
                     {TABLE_PLAYERS.map((player) => (
-                        <TrickSlot key={player} player={player} play={plays.find((candidate) => candidate.player === player)} />
+                        <TrickSlot
+                            current={isCurrentTurn(state.phase, player)}
+                            key={player}
+                            player={player}
+                            play={plays.find((candidate) => candidate.player === player)}
+                        />
                     ))}
                 </div>
                 <DecisionControls controller={controller} decision={decision} />
             </div>
-            <div className={`self-seat ${isCurrentTurn(state.phase, Player.Self) ? "current-turn" : ""}`}>
-                <div className="seat-label-row">
-                    <strong>You</strong>
-                    <span>{getSelfActionLabel(decision)}</span>
-                </div>
-                <CardRow cards={hand.hand} legalCards={getLegalCardsForDecision(decision)} />
+            <div className="self-seat" aria-label="Your hand">
+                <SeatChips hand={hand} player={Player.Self} />
+                <CardRow
+                    cards={getDisplayHandCards(hand, decision)}
+                    current={isCurrentTurn(state.phase, Player.Self)}
+                    interaction={handInteraction}
+                    trump={hand.trump}
+                />
             </div>
         </section>
     );
 }
 
 /**
- * Renders top-level table controls and phase text.
+ * Renders top-level table controls.
  *
  * @param props - Phase label and optional reset callback.
  * @returns Table chrome element.
  * @sideEffects None.
  */
 function TableChrome({
-    phaseLabel,
     onNewGame
 }: {
-    phaseLabel: string;
     onNewGame: (() => void) | undefined;
 }): ReactElement {
     return (
         <div className="table-chrome">
-            <div>
-                <h1>Euchre</h1>
-                <p>{phaseLabel}</p>
-            </div>
             <button type="button" onClick={onNewGame} disabled={onNewGame === undefined}>
                 New game
             </button>
@@ -281,20 +301,17 @@ function TableChrome({
 function ScoreOverlay({
     ariaLabel,
     className,
-    label,
     score
 }: {
     ariaLabel: string;
     className: string;
-    label: string;
     score: IRelativeScore;
 }): ReactElement {
     return (
         <aside className={`score-overlay ${className}`} aria-label={ariaLabel}>
-            <span className="score-title">{label}</span>
             <div className="score-pair">
-                <ScorePill className="team-score-blue" label="Your team" value={score.yourTeam} />
-                <ScorePill className="team-score-red" label="Opponents" value={score.opponents} />
+                <ScorePill ariaLabel="Your team score" className="team-score-blue" value={score.yourTeam} />
+                <ScorePill ariaLabel="Opponent score" className="team-score-red" value={score.opponents} />
             </div>
         </aside>
     );
@@ -308,17 +325,16 @@ function ScoreOverlay({
  * @sideEffects None.
  */
 function ScorePill({
+    ariaLabel,
     className,
-    label,
     value
 }: {
+    ariaLabel: string;
     className: string;
-    label: string;
     value: number;
 }): ReactElement {
     return (
-        <div className={`score-pill ${className}`}>
-            <span>{label}</span>
+        <div className={`score-pill ${className}`} aria-label={ariaLabel}>
             <strong>{value}</strong>
         </div>
     );
@@ -341,16 +357,44 @@ function SeatPanel({
     state: IGameStatePublic;
 }): ReactElement {
     return (
-        <div className={`seat-panel ${getSeatClass(player)} ${isCurrentTurn(state.phase, player) ? "current-turn" : ""}`}>
-            <div className="seat-label-row">
-                <strong>{formatPlayer(player)}</strong>
-                <span>{getSeatRoleLabel(hand, player)}</span>
-            </div>
+        <div className={`seat-panel ${getSeatClass(player)}`} aria-label={`${formatPlayer(player)} seat`}>
+            <SeatChips hand={hand} player={player} />
             <CardBackRow
                 count={getVisibleBackCount(hand, state.phase, player)}
+                current={isCurrentTurn(state.phase, player)}
                 label={`${formatPlayer(player)} hidden cards`}
+                player={player}
                 sideways={isSideOpponent(player)}
             />
+        </div>
+    );
+}
+
+/**
+ * Renders seat-level status chips without reintroducing visible seat labels.
+ *
+ * @param props - Current public hand and relative player seat.
+ * @returns Dealer and trump-maker chips for the seat, or null when no chips apply.
+ * @sideEffects None.
+ */
+function SeatChips({
+    hand,
+    player
+}: {
+    hand: IHandStatePublic;
+    player: Player;
+}): ReactElement | null {
+    const isDealer = hand.dealer === player;
+    const makerTrump = hand.maker === player ? hand.trump : undefined;
+
+    if (!isDealer && makerTrump === undefined) {
+        return null;
+    }
+
+    return (
+        <div className={`seat-chips ${isSideOpponent(player) ? "side-seat-chips" : ""}`} aria-label={`${formatPlayer(player)} markers`}>
+            {isDealer ? <span className="table-chip dealer-chip">Dealer</span> : null}
+            {makerTrump === undefined ? null : <span className="table-chip trump-chip">{formatSuit(makerTrump)}</span>}
         </div>
     );
 }
@@ -363,16 +407,21 @@ function SeatPanel({
  * @sideEffects None.
  */
 function TrickSlot({
+    current,
     player,
     play
 }: {
+    current: boolean;
     player: Player;
     play: IPlayedCard<Player> | undefined;
 }): ReactElement {
     return (
         <div className={`trick-slot ${getSeatClass(player)}`}>
-            <span>{formatPlayer(player)}</span>
-            {play === undefined ? <span className="empty-card-slot" aria-hidden="true" /> : <CardImage card={play.card} size="small" />}
+            {play === undefined ? (
+                <span className={`empty-card-slot ${current ? "current-turn-glow" : ""}`} aria-hidden="true" />
+            ) : (
+                <CardImage card={play.card} current={current} size="small" />
+            )}
         </div>
     );
 }
@@ -390,13 +439,9 @@ function DecisionControls({
 }: {
     controller: HumanPlayerController;
     decision: HumanPlayerDecision | undefined;
-}): ReactElement {
-    if (decision === undefined) {
-        return (
-            <section className="decision-controls" aria-label="Decision">
-                <p>Waiting for your turn.</p>
-            </section>
-        );
+}): ReactElement | null {
+    if (decision === undefined || decision.kind === "DealerDiscard" || decision.kind === "PlayCard") {
+        return null;
     }
 
     return (
@@ -414,7 +459,7 @@ function DecisionControls({
  * @returns React controls for the decision.
  * @sideEffects None.
  */
-function renderDecision(controller: HumanPlayerController, decision: HumanPlayerDecision): ReactElement {
+function renderDecision(controller: HumanPlayerController, decision: PromptDecision): ReactElement {
     switch (decision.kind) {
         case "OrderTrump":
             return (
@@ -443,20 +488,6 @@ function renderDecision(controller: HumanPlayerController, decision: HumanPlayer
                             <button type="button" onClick={() => controller.passTrump()}>Pass</button>
                         )}
                     </div>
-                </div>
-            );
-        case "DealerDiscard":
-            return (
-                <div className="decision-content">
-                    <p>Discard one card after picking up {formatCardLong(decision.request.pickedUpCard)}.</p>
-                    <CardButtonRow cards={decision.request.hand} onChoose={(card) => controller.chooseDealerDiscardFromUi(card)} />
-                </div>
-            );
-        case "PlayCard":
-            return (
-                <div className="decision-content">
-                    <p>Play a legal card.</p>
-                    <CardButtonRow cards={decision.request.legalCards} onChoose={(card) => controller.chooseCardToPlayFromUi(card)} />
                 </div>
             );
     }
@@ -519,26 +550,30 @@ function DebugRow({ label, value }: { label: string; value: string }): ReactElem
 }
 
 /**
- * Renders visible cards as display-only elements.
+ * Renders the sorted human hand row.
  *
- * @param props - Cards and optional legal-card highlight set.
- * @returns React row of SVG cards.
+ * @param props - Cards, current turn state, interaction mode, and active trump.
+ * @returns React hand row with display-only, discard, or play-card behavior.
  * @sideEffects None.
  */
 function CardRow({
     cards,
-    legalCards
+    current = false,
+    interaction = { kind: "display" },
+    trump
 }: {
     cards: readonly ICard[];
-    legalCards?: readonly ICard[] | undefined;
+    current?: boolean | undefined;
+    interaction?: HandInteraction | undefined;
+    trump?: Suit | undefined;
 }): ReactElement {
     return (
-        <div className="card-row">
-            {cards.map((card, index) => (
-                <CardImage
+        <div className={`card-row ${current ? "current-turn-glow" : ""}`}>
+            {sortCardsForDisplay(cards, trump).map((card, index) => (
+                <CardRowItem
                     card={card}
+                    interaction={interaction}
                     key={`${card.rank}-${card.suit}-${index}`}
-                    legal={legalCards?.some((legalCard) => cardsEqual(legalCard, card))}
                 />
             ))}
         </div>
@@ -546,33 +581,36 @@ function CardRow({
 }
 
 /**
- * Renders visible cards as selection buttons.
+ * Renders one card in the human hand row.
  *
- * @param props - Cards and selection callback.
- * @returns React row of card buttons.
+ * @param props - Card and current interaction mode.
+ * @returns Display-only card or clickable/disabled card button.
  * @sideEffects None.
  */
-function CardButtonRow({
-    cards,
-    onChoose
+function CardRowItem({
+    card,
+    interaction
 }: {
-    cards: readonly ICard[];
-    onChoose: (card: ICard) => void;
+    card: ICard;
+    interaction: HandInteraction;
 }): ReactElement {
+    if (interaction.kind === "display") {
+        return <CardImage card={card} />;
+    }
+
+    const enabled = interaction.kind === "discard" || interaction.legalCards.some((legalCard) => cardsEqual(legalCard, card));
+    const onChoose = interaction.onChoose;
+
     return (
-        <div className="card-row">
-            {cards.map((card, index) => (
-                <button
-                    aria-label={formatCardLong(card)}
-                    className="playing-card-button"
-                    key={`${card.rank}-${card.suit}-${index}`}
-                    type="button"
-                    onClick={() => onChoose(card)}
-                >
-                    <CardImage card={card} />
-                </button>
-            ))}
-        </div>
+        <button
+            aria-label={formatCardLong(card)}
+            className="playing-card-button"
+            disabled={!enabled}
+            type="button"
+            onClick={() => onChoose(card)}
+        >
+            <CardImage card={card} disabled={!enabled} legal={enabled} />
+        </button>
     );
 }
 
@@ -585,17 +623,21 @@ function CardButtonRow({
  */
 function CardImage({
     card,
+    current = false,
+    disabled = false,
     size = "normal",
     legal = false
 }: {
     card: ICard;
+    current?: boolean | undefined;
+    disabled?: boolean | undefined;
     size?: "small" | "normal" | "medium" | undefined;
     legal?: boolean | undefined;
 }): ReactElement {
     return (
         <img
             alt={formatCardLong(card)}
-            className={`playing-card ${size === "small" ? "small-card" : ""} ${size === "medium" ? "medium-card" : ""} ${legal ? "legal-card" : ""}`}
+            className={`playing-card ${size === "small" ? "small-card" : ""} ${size === "medium" ? "medium-card" : ""} ${legal ? "legal-card" : ""} ${disabled ? "disabled-card" : ""} ${current ? "current-turn-glow" : ""}`}
             src={getCardAssetUrl(card)}
         />
     );
@@ -610,19 +652,25 @@ function CardImage({
  */
 function CardBackRow({
     count,
+    current = false,
     label,
+    player,
     sideways
 }: {
     count: number;
+    current?: boolean | undefined;
     label: string;
+    player: Player;
     sideways: boolean;
 }): ReactElement {
     const backs = Array.from({ length: count }, (_, index) => index);
+    const backAssetUrl = getCardBackAssetUrl(player);
+    const backClass = isHumanSide(player) ? "team-card-back" : "opponent-card-back";
 
     return (
-        <div className={`back-row ${sideways ? "sideways-backs" : ""}`} aria-label={label}>
+        <div className={`back-row ${sideways ? "sideways-backs" : ""} ${current ? "current-turn-glow" : ""}`} aria-label={label}>
             {backs.map((index) => (
-                <img alt="Card back" className="playing-card card-back small-card" key={index} src={CARD_BACK_ASSET_URL} />
+                <img alt="Card back" className={`playing-card card-back small-card ${backClass}`} key={index} src={backAssetUrl} />
             ))}
         </div>
     );
@@ -706,32 +754,6 @@ function aggregateTrickCounts(counts: readonly (readonly [Player, number])[]): I
  */
 function getPhaseHand(phase: GamePhasePublic): IHandStatePublic | undefined {
     return "hand" in phase ? phase.hand : undefined;
-}
-
-/**
- * Returns a high-level label for the current phase.
- *
- * @param phase - Public game phase.
- * @returns Human-readable phase label.
- * @sideEffects None.
- */
-function getPhaseLabel(phase: GamePhasePublic): string {
-    switch (phase.kind) {
-        case "Dealing":
-            return "Cards dealt";
-        case "OrderingTrump":
-            return `${formatPlayer(phase.currentPlayer)} deciding on the upcard`;
-        case "DealerDiscard":
-            return "Dealer discarding";
-        case "ChoosingTrump":
-            return `${formatPlayer(phase.currentPlayer)} choosing trump`;
-        case "PlayingTrick":
-            return `${formatPlayer(phase.trick.currentPlayer)} to play`;
-        case "ScoringHand":
-            return `${formatTeam(phase.scoringTeam)} scored ${phase.pointsAwarded}`;
-        case "GameComplete":
-            return `Game complete: ${formatTeam(phase.winner)} won`;
-    }
 }
 
 /**
@@ -832,49 +854,49 @@ function getCurrentTurnPlayer(phase: GamePhasePublic): Player | undefined {
 }
 
 /**
- * Returns legal cards from a pending play decision.
+ * Returns how the human hand row should behave for the current decision.
  *
- * @param decision - Current pending decision.
- * @returns Legal play cards when the user is playing a card.
+ * @param decision - Pending decision, if any.
+ * @param controller - Human player controller used to resolve card choices.
+ * @returns Display, discard, or play interaction mode.
  * @sideEffects None.
  */
-function getLegalCardsForDecision(decision: HumanPlayerDecision | undefined): readonly ICard[] | undefined {
-    return decision?.kind === "PlayCard" ? decision.request.legalCards : undefined;
+function getHandInteraction(decision: HumanPlayerDecision | undefined, controller: HumanPlayerController): HandInteraction {
+    switch (decision?.kind) {
+        case "DealerDiscard":
+            return { kind: "discard", onChoose: (card) => controller.chooseDealerDiscardFromUi(card) };
+        case "PlayCard":
+            return {
+                kind: "play",
+                legalCards: decision.request.legalCards,
+                onChoose: (card) => controller.chooseCardToPlayFromUi(card)
+            };
+        default:
+            return { kind: "display" };
+    }
 }
 
 /**
- * Returns a label for the self hand action hint.
+ * Returns the card list that should be visible in the human hand row.
  *
- * @param decision - Current pending decision.
- * @returns Short action label.
+ * @param hand - Current public hand.
+ * @param decision - Pending decision, if any.
+ * @returns Dealer discard hand when discarding, otherwise the public hand.
  * @sideEffects None.
  */
-function getSelfActionLabel(decision: HumanPlayerDecision | undefined): string {
-    return decision?.kind === "PlayCard" ? "Your play" : "Your hand";
+function getDisplayHandCards(hand: IHandStatePublic, decision: HumanPlayerDecision | undefined): readonly ICard[] {
+    return decision?.kind === "DealerDiscard" ? decision.request.hand : hand.hand;
 }
 
 /**
- * Returns a short role badge for one seat.
+ * Returns the hidden-card back asset for a relative player.
  *
- * @param hand - Current public hand state.
- * @param player - Relative player to label.
- * @returns Dealer, maker, alone, or empty label.
+ * @param player - Relative player whose hidden card back is being rendered.
+ * @returns Teammate or opponent card-back URL.
  * @sideEffects None.
  */
-function getSeatRoleLabel(hand: IHandStatePublic, player: Player): string {
-    if (hand.goingAlone === player) {
-        return "Going alone";
-    }
-
-    if (hand.maker === player) {
-        return "Maker";
-    }
-
-    if (hand.dealer === player) {
-        return "Dealer";
-    }
-
-    return "";
+function getCardBackAssetUrl(player: Player): string {
+    return isHumanSide(player) ? TEAMMATE_CARD_BACK_ASSET_URL : OPPONENT_CARD_BACK_ASSET_URL;
 }
 
 /**
@@ -1085,6 +1107,85 @@ function getSuitInitial(suit: Suit): string {
             return "C";
         case Suit.Spades:
             return "S";
+    }
+}
+
+/**
+ * Returns a new hand sorted for display by effective suit, then rank.
+ *
+ * @param cards - Cards to display without mutating the source order.
+ * @param trump - Active trump suit, when known.
+ * @returns Cards ordered by suit group and rank within each suit.
+ * @sideEffects None.
+ */
+function sortCardsForDisplay(cards: readonly ICard[], trump: Suit | undefined): readonly ICard[] {
+    return [...cards].sort((firstCard, secondCard) => compareCardsForDisplay(firstCard, secondCard, trump));
+}
+
+/**
+ * Compares two cards by display suit and rank.
+ *
+ * @param firstCard - First card to compare.
+ * @param secondCard - Second card to compare.
+ * @param trump - Active trump suit, when known.
+ * @returns Negative, zero, or positive value for Array.sort.
+ * @sideEffects None.
+ */
+function compareCardsForDisplay(firstCard: ICard, secondCard: ICard, trump: Suit | undefined): number {
+    const suitDifference = DISPLAY_SUIT_ORDER[getDisplaySuit(firstCard, trump)] - DISPLAY_SUIT_ORDER[getDisplaySuit(secondCard, trump)];
+
+    if (suitDifference !== 0) {
+        return suitDifference;
+    }
+
+    return DISPLAY_RANK_ORDER[firstCard.rank] - DISPLAY_RANK_ORDER[secondCard.rank];
+}
+
+/**
+ * Returns the suit bucket a card should occupy in the player's display hand.
+ *
+ * @param card - Card to bucket.
+ * @param trump - Active trump suit, when known.
+ * @returns Effective suit for sorting, including left-bower promotion.
+ * @sideEffects None.
+ */
+function getDisplaySuit(card: ICard, trump: Suit | undefined): Suit {
+    if (trump === undefined) {
+        return card.suit;
+    }
+
+    return isLeftBower(card, trump) ? trump : card.suit;
+}
+
+/**
+ * Checks whether a card is the left bower for the active trump suit.
+ *
+ * @param card - Card to evaluate.
+ * @param trump - Active trump suit.
+ * @returns True when the card is the jack of the same-color suit.
+ * @sideEffects None.
+ */
+function isLeftBower(card: ICard, trump: Suit): boolean {
+    return card.rank === Rank.Jack && card.suit === sameColorSuit(trump);
+}
+
+/**
+ * Returns the other suit of the same color.
+ *
+ * @param suit - Suit to pair by color.
+ * @returns Same-color suit.
+ * @sideEffects None.
+ */
+function sameColorSuit(suit: Suit): Suit {
+    switch (suit) {
+        case Suit.Hearts:
+            return Suit.Diamonds;
+        case Suit.Diamonds:
+            return Suit.Hearts;
+        case Suit.Clubs:
+            return Suit.Spades;
+        case Suit.Spades:
+            return Suit.Clubs;
     }
 }
 

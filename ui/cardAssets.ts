@@ -2,9 +2,14 @@ import { ICard } from "../types/cards";
 import { Rank, Suit } from "../types/enums";
 
 /**
- * URL for the shared card-back SVG asset.
+ * URL for the opponent card-back SVG asset.
  */
-export const CARD_BACK_ASSET_URL = new URL("./assets/cards/2B.svg", import.meta.url).href;
+export const OPPONENT_CARD_BACK_ASSET_URL = new URL("./assets/cards/2B.svg", import.meta.url).href;
+
+/**
+ * URL for the teammate card-back SVG asset.
+ */
+export const TEAMMATE_CARD_BACK_ASSET_URL = new URL("./assets/cards/2B-blue.svg", import.meta.url).href;
 
 /**
  * Returns the SVG asset URL for one visible card.

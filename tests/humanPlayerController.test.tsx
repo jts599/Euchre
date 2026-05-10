@@ -8,9 +8,11 @@ import { HumanPlayerController } from "../ui/HumanPlayerController";
 import { HumanPlayerView } from "../ui/HumanPlayerView";
 
 const jackSpades: ICard = { suit: Suit.Spades, rank: Rank.Jack };
+const jackDiamonds: ICard = { suit: Suit.Diamonds, rank: Rank.Jack };
 const aceSpades: ICard = { suit: Suit.Spades, rank: Rank.Ace };
 const nineHearts: ICard = { suit: Suit.Hearts, rank: Rank.Nine };
 const tenHearts: ICard = { suit: Suit.Hearts, rank: Rank.Ten };
+const kingClubs: ICard = { suit: Suit.Clubs, rank: Rank.King };
 
 /**
  * Tests for the React-backed human player controller and view.
@@ -29,7 +31,7 @@ describe("HumanPlayerController UI", () => {
         await user.click(screen.getByRole("button", { name: "Order up" }));
 
         await expect(promise).resolves.toEqual({ pickItUp: true, goAlone: false });
-        expect(screen.getByText("Waiting for your turn.")).toBeInTheDocument();
+        expect(screen.queryByLabelText("Decision")).not.toBeInTheDocument();
     });
 
     it("renders available trump suits and hides pass when trump is required", async () => {
@@ -64,7 +66,7 @@ describe("HumanPlayerController UI", () => {
         await expect(promise).resolves.toBeNull();
     });
 
-    it("resolves dealer discard from a clicked card", async () => {
+    it("resolves dealer discard from the normal hand row", async () => {
         const user = userEvent.setup();
         const controller = new HumanPlayerController();
         const promise = controller.chooseDealerDiscard({
@@ -74,12 +76,17 @@ describe("HumanPlayerController UI", () => {
         });
 
         render(<HumanPlayerView controller={controller} />);
-        await user.click(screen.getByRole("button", { name: "9 Hearts" }));
+        const hand = screen.getByLabelText("Your hand");
+
+        expect(screen.queryByText(/Discard one card/)).not.toBeInTheDocument();
+        expect(within(hand).getByRole("button", { name: "9 Hearts" })).toBeEnabled();
+        expect(within(hand).getByRole("button", { name: "10 Hearts" })).toBeEnabled();
+        await user.click(within(hand).getByRole("button", { name: "9 Hearts" }));
 
         await expect(promise).resolves.toEqual(nineHearts);
     });
 
-    it("renders only legal play cards as selectable", async () => {
+    it("greys illegal play cards and keeps legal hand cards selectable", async () => {
         const user = userEvent.setup();
         const controller = new HumanPlayerController();
         const promise = controller.chooseCardToPlay({
@@ -89,9 +96,15 @@ describe("HumanPlayerController UI", () => {
         });
 
         render(<HumanPlayerView controller={controller} />);
+        const hand = screen.getByLabelText("Your hand");
+        const illegalCard = within(hand).getByRole("button", { name: "A Spades" });
+        const legalCard = within(hand).getByRole("button", { name: "9 Hearts" });
 
-        expect(screen.queryByRole("button", { name: "A Spades" })).not.toBeInTheDocument();
-        await user.click(screen.getByRole("button", { name: "9 Hearts" }));
+        expect(screen.queryByText("Play a legal card.")).not.toBeInTheDocument();
+        expect(illegalCard).toBeDisabled();
+        expect(within(illegalCard).getByRole("img", { name: "A Spades" })).toHaveClass("disabled-card");
+        expect(legalCard).toBeEnabled();
+        await user.click(legalCard);
 
         await expect(promise).resolves.toEqual(nineHearts);
     });
@@ -106,13 +119,16 @@ describe("HumanPlayerController UI", () => {
 
         const gameScore = screen.getByLabelText("Game score");
 
-        expect(screen.getByText("Cards dealt")).toBeInTheDocument();
-        expect(within(gameScore).getByText("Game")).toBeInTheDocument();
-        expect(within(gameScore).getByText("Your team")).toBeInTheDocument();
-        expect(within(gameScore).getByText("Opponents")).toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: "Euchre" })).not.toBeInTheDocument();
+        expect(screen.queryByText("Cards dealt")).not.toBeInTheDocument();
+        expect(within(gameScore).queryByText("Game")).not.toBeInTheDocument();
+        expect(within(gameScore).queryByText("Your team")).not.toBeInTheDocument();
+        expect(within(gameScore).queryByText("Opponents")).not.toBeInTheDocument();
+        expect(within(gameScore).getByLabelText("Your team score")).toHaveTextContent("1");
+        expect(within(gameScore).getByLabelText("Opponent score")).toHaveTextContent("2");
     });
 
-    it("renders card backs for other seats from public state", () => {
+    it("renders team-colored card backs for other seats from public state", () => {
         const controller = new HumanPlayerController();
 
         render(<HumanPlayerView controller={controller} />);
@@ -121,6 +137,31 @@ describe("HumanPlayerController UI", () => {
         });
 
         expect(screen.getAllByAltText("Card back")).toHaveLength(15);
+        expect(getFirstCardBack("Partner hidden cards")).toHaveClass("team-card-back");
+        expect(getFirstCardBack("Left opponent hidden cards")).toHaveClass("opponent-card-back");
+        expect(getFirstCardBack("Right opponent hidden cards")).toHaveClass("opponent-card-back");
+    });
+
+    it("sorts the displayed hand by suit and rank before trump is chosen", () => {
+        const controller = new HumanPlayerController();
+
+        render(<HumanPlayerView controller={controller} />);
+        act(() => {
+            controller.onStateChange(createPublicState([aceSpades, tenHearts, nineHearts, kingClubs]));
+        });
+
+        expect(getVisibleHandCardLabels()).toEqual(["9 Hearts", "10 Hearts", "K Clubs", "A Spades"]);
+    });
+
+    it("sorts the displayed hand by effective suit after trump is chosen", () => {
+        const controller = new HumanPlayerController();
+
+        render(<HumanPlayerView controller={controller} />);
+        act(() => {
+            controller.onStateChange(createPublicState([aceSpades, jackDiamonds, tenHearts, nineHearts], Suit.Hearts));
+        });
+
+        expect(getVisibleHandCardLabels()).toEqual(["9 Hearts", "10 Hearts", "J Diamonds", "A Spades"]);
     });
 
     it("renders hand score from current trick counts", () => {
@@ -133,12 +174,12 @@ describe("HumanPlayerController UI", () => {
 
         const handScore = screen.getByLabelText("Hand score");
 
-        expect(within(handScore).getByText("Hand")).toBeInTheDocument();
+        expect(within(handScore).queryByText("Hand")).not.toBeInTheDocument();
         expect(within(handScore).getByText("1")).toBeInTheDocument();
         expect(within(handScore).getByText("2")).toBeInTheDocument();
     });
 
-    it("rotates side opponent hidden hands", () => {
+    it("stacks and rotates side opponent hidden hands", () => {
         const controller = new HumanPlayerController();
 
         render(<HumanPlayerView controller={controller} />);
@@ -149,6 +190,21 @@ describe("HumanPlayerController UI", () => {
         expect(screen.getByLabelText("Left opponent hidden cards")).toHaveClass("sideways-backs");
         expect(screen.getByLabelText("Right opponent hidden cards")).toHaveClass("sideways-backs");
         expect(screen.getByLabelText("Partner hidden cards")).not.toHaveClass("sideways-backs");
+    });
+
+    it("renders dealer and maker trump chips without visible seat labels", () => {
+        const controller = new HumanPlayerController();
+
+        render(<HumanPlayerView controller={controller} />);
+        act(() => {
+            controller.onStateChange(createPublicState([nineHearts, tenHearts], Suit.Hearts));
+        });
+
+        expect(screen.getByText("Dealer")).toBeInTheDocument();
+        expect(screen.getByText(Suit.Hearts)).toBeInTheDocument();
+        expect(screen.queryByText("Partner")).not.toBeInTheDocument();
+        expect(screen.queryByText("Left opponent")).not.toBeInTheDocument();
+        expect(screen.queryByText("Right opponent")).not.toBeInTheDocument();
     });
 
     it("renders the current trick card in the table", () => {
@@ -192,6 +248,37 @@ describe("HumanPlayerController UI", () => {
 });
 
 /**
+ * Returns rendered card labels from the human hand area.
+ *
+ * @returns Card image alt text in visual hand order.
+ * @sideEffects Reads the rendered DOM.
+ */
+function getVisibleHandCardLabels(): string[] {
+    const hand = screen.getByLabelText("Your hand");
+    const images = within(hand).getAllByRole("img");
+
+    return images.map((image) => image.getAttribute("alt") ?? "");
+}
+
+/**
+ * Returns the first card back from a labelled hidden hand.
+ *
+ * @param label - Accessible label for the hidden hand.
+ * @returns First card-back image.
+ * @throws Error when the hand has no card backs.
+ * @sideEffects Reads the rendered DOM.
+ */
+function getFirstCardBack(label: string): HTMLElement {
+    const cardBack = within(screen.getByLabelText(label)).getAllByAltText("Card back")[0];
+
+    if (cardBack === undefined) {
+        throw new Error(`${label} did not render any card backs.`);
+    }
+
+    return cardBack;
+}
+
+/**
  * Creates a hand-bearing public state for UI tests.
  *
  * @param hand - Cards visible to the human player.
@@ -216,7 +303,7 @@ function createPublicState(hand: readonly ICard[], trump?: Suit): IGameStatePubl
                 dealer: Player.Partner,
                 playedCards: [],
                 completedTricks: [],
-                ...(trump === undefined ? {} : { trump })
+                ...(trump === undefined ? {} : { maker: Player.LeftOpponent, trump })
             }
         }
     };
