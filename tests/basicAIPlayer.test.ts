@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runGame } from "../game";
+import { IRunGameOptions, runGame } from "../game";
 import { BasicAIPlayer } from "../players";
 import { ICard } from "../types/cards";
 import { Player, PositionalPlayer, Rank, Suit } from "../types/enums";
@@ -109,10 +109,12 @@ describe("BasicAIPlayer", () => {
             [PositionalPlayer.West]: new BasicAIPlayer({ rng: () => 0 })
         };
 
-        const result = await runGame(players, {
+        const options: IRunGameOptions = {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1, stickTheDealer: true },
             rng: () => 0
-        });
+        };
+        const result = await runGame(players, options);
 
         expect(result.finalState.phase.kind).toBe("GameComplete");
         expect([Team.NorthSouth, Team.EastWest]).toContain(result.winner);

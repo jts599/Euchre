@@ -11,16 +11,20 @@ import {
     ITrumpChoiceRequest,
     TrumpChoiceResult
 } from "../types/player";
-import { runGame } from "../game";
+import { IGameResult, runGame } from "../game";
 
 const illegalCard: ICard = { suit: Suit.Spades, rank: Rank.Ace };
+type RunGamePlayers = Parameters<typeof runGame>[0];
+type RunGameOptions = NonNullable<Parameters<typeof runGame>[1]>;
+type TestRunGameOptions = RunGameOptions & { cardPlayDelayMs?: number };
 
 /**
  * Integration tests for the async game runner.
  */
 describe("game runner", () => {
     it("runs a deterministic full game to completion", async () => {
-        const result = await runGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+        const result = await runTestGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0
         });
@@ -33,7 +37,8 @@ describe("game runner", () => {
     it("broadcasts public state for every player without hidden hands", async () => {
         const broadcasts: Array<{ player: PositionalPlayer; state: IGameStatePublic }> = [];
 
-        await runGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+        await runTestGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0,
             onPublicStateChange: (player, state) => {
@@ -63,7 +68,8 @@ describe("game runner", () => {
     it("broadcasts an in-progress trick after the fourth card is accepted", async () => {
         const southStates: IGameStatePublic[] = [];
 
-        await runGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+        await runTestGame(createPlayers({ orderUpSeat: PositionalPlayer.East }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0,
             onPublicStateChange: (player, state) => {
@@ -81,12 +87,13 @@ describe("game runner", () => {
     it("supports second-round trump selection after the upcard is turned down", async () => {
         const capturedSuits: Suit[][] = [];
 
-        await runGame(createPlayers({
+        await runTestGame(createPlayers({
             chooseTrumpSeat: PositionalPlayer.East,
             onTrumpChoice: (request) => {
                 capturedSuits.push([...request.availableSuits]);
             }
         }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0
         });
@@ -96,10 +103,11 @@ describe("game runner", () => {
     });
 
     it("redeals with the next dealer after a passed-out hand", async () => {
-        const result = await runGame(createPlayers({
+        const result = await runTestGame(createPlayers({
             orderUpSeat: PositionalPlayer.East,
             passUntilHand: 2
         }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             dealer: PositionalPlayer.North,
             rng: () => 0
@@ -109,35 +117,86 @@ describe("game runner", () => {
     });
 
     it("throws when the dealer discards a card not in hand", async () => {
-        await expect(runGame(createPlayers({
+        await expect(runTestGame(createPlayers({
             orderUpSeat: PositionalPlayer.East,
             discardCard: illegalCard
         }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0
         })).rejects.toThrow(/Cannot discard/);
     });
 
     it("throws when a player chooses an unavailable trump suit", async () => {
-        await expect(runGame(createPlayers({
+        await expect(runTestGame(createPlayers({
             chooseTrumpSeat: PositionalPlayer.East,
             trumpSuit: Suit.Spades
         }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0
         })).rejects.toThrow(/unavailable trump suit/);
     });
 
     it("throws when a player chooses an illegal card", async () => {
-        await expect(runGame(createPlayers({
+        await expect(runTestGame(createPlayers({
             orderUpSeat: PositionalPlayer.East,
             playCard: illegalCard
         }), {
+            cardPlayDelayMs: 0,
             config: { targetScore: 1 },
             rng: () => 0
         })).rejects.toThrow(/not in hand|cannot legally play/);
     });
+
+    it("waits after emitting an accepted card before asking for the next play", async () => {
+        const delayMs = 25;
+        const choiceTimes: number[] = [];
+        let firstAcceptedPlayTime: number | undefined;
+
+        await runTestGame(createPlayers({
+            orderUpSeat: PositionalPlayer.East,
+            onCardChoice: () => {
+                choiceTimes.push(Date.now());
+            }
+        }), {
+            cardPlayDelayMs: delayMs,
+            config: { targetScore: 1 },
+            rng: () => 0,
+            onPrivateStateChange: (state) => {
+                if (
+                    firstAcceptedPlayTime === undefined &&
+                    state.phase.kind === "PlayingTrick" &&
+                    state.phase.trick.plays.length === 1
+                ) {
+                    firstAcceptedPlayTime = Date.now();
+                }
+            }
+        });
+
+        const nextChoiceTime = choiceTimes.find((choiceTime) => (
+            firstAcceptedPlayTime !== undefined && choiceTime > firstAcceptedPlayTime
+        ));
+
+        if (firstAcceptedPlayTime === undefined || nextChoiceTime === undefined) {
+            throw new Error("Expected a delayed choice after the first accepted play.");
+        }
+
+        expect(nextChoiceTime - firstAcceptedPlayTime).toBeGreaterThanOrEqual(20);
+    });
 });
+
+/**
+ * Runs the game with test options that can disable or shorten visual pacing.
+ *
+ * @param players - Player implementations keyed by absolute table position.
+ * @param options - Runner options plus the card-play delay override used by tests.
+ * @returns Completed game result.
+ * @sideEffects Runs the async game engine.
+ */
+async function runTestGame(players: RunGamePlayers, options: TestRunGameOptions): Promise<IGameResult> {
+    return runGame(players, options);
+}
 
 interface IScriptOptions {
     orderUpSeat?: PositionalPlayer;
@@ -146,6 +205,7 @@ interface IScriptOptions {
     trumpSuit?: Suit;
     discardCard?: ICard;
     playCard?: ICard;
+    onCardChoice?: (seat: PositionalPlayer, request: ICardPlayRequest) => void;
     onTrumpChoice?: (request: ITrumpChoiceRequest) => void;
 }
 
@@ -178,7 +238,11 @@ function createPlayer(seat: PositionalPlayer, options: IScriptOptions): IPlayer 
         doYouWantThisTrump: async (request) => chooseUpcard(seat, request, options),
         doYouWantToPickTrump: async (request) => chooseTrump(seat, request, options),
         chooseDealerDiscard: async (request) => options.discardCard ?? chooseFirst(request.hand),
-        chooseCardToPlay: async (request) => options.playCard ?? chooseFirst(request.legalCards)
+        chooseCardToPlay: async (request) => {
+            options.onCardChoice?.(seat, request);
+
+            return options.playCard ?? chooseFirst(request.legalCards);
+        }
     };
 }
 

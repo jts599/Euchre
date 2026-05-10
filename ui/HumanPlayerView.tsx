@@ -50,20 +50,18 @@ type PromptDecision = Extract<HumanPlayerDecision, { kind: "OrderTrump" | "Choos
 export interface IHumanPlayerViewProps {
     controller: HumanPlayerController;
     humanTeam?: Team;
-    onNewGame?: () => void;
 }
 
 /**
  * Renders public state and decision controls for one human player.
  *
- * @param props - Controller, optional human team, and optional reset callback.
+ * @param props - Controller and optional human team.
  * @returns React view for the human player.
  * @sideEffects Subscribes to controller state and registers `window.debugMode`.
  */
 export function HumanPlayerView({
     controller,
-    humanTeam = DEFAULT_HUMAN_TEAM,
-    onNewGame
+    humanTeam = DEFAULT_HUMAN_TEAM
 }: IHumanPlayerViewProps): ReactElement {
     const snapshot = useHumanPlayerController(controller);
     const [debugEnabled, setDebugEnabled] = useState(false);
@@ -90,7 +88,7 @@ export function HumanPlayerView({
         <main className={`app-shell ${debugEnabled ? "debug-layout" : ""}`}>
             {snapshot.error === undefined ? null : <p className="error" role="alert">{snapshot.error}</p>}
             {publicState === undefined ? (
-                <EmptyTable onNewGame={onNewGame} />
+                <EmptyTable />
             ) : (
                 <GameStateDisplay
                     state={publicState}
@@ -98,7 +96,6 @@ export function HumanPlayerView({
                     controller={controller}
                     debugEnabled={debugEnabled}
                     humanTeam={humanTeam}
-                    onNewGame={onNewGame}
                 />
             )}
         </main>
@@ -108,14 +105,12 @@ export function HumanPlayerView({
 /**
  * Renders the empty waiting table.
  *
- * @param props - Optional reset callback.
  * @returns Empty table state.
  * @sideEffects None.
  */
-function EmptyTable({ onNewGame }: { onNewGame: (() => void) | undefined }): ReactElement {
+function EmptyTable(): ReactElement {
     return (
         <section className="table-surface empty-table" aria-label="Euchre table">
-            <TableChrome onNewGame={onNewGame} />
             <div className="table-message">
                 <h1>Euchre</h1>
                 <p>No public state has been received yet.</p>
@@ -136,20 +131,18 @@ function GameStateDisplay({
     decision,
     controller,
     debugEnabled,
-    humanTeam,
-    onNewGame
+    humanTeam
 }: {
     state: IGameStatePublic;
     decision: HumanPlayerDecision | undefined;
     controller: HumanPlayerController;
     debugEnabled: boolean;
     humanTeam: Team;
-    onNewGame: (() => void) | undefined;
 }): ReactElement {
     const hand = getPhaseHand(state.phase);
 
     if (hand === undefined) {
-        return <TerminalState state={state} onNewGame={onNewGame} />;
+        return <TerminalState state={state} />;
     }
 
     return (
@@ -161,7 +154,6 @@ function GameStateDisplay({
                 decision={decision}
                 controller={controller}
                 humanTeam={humanTeam}
-                onNewGame={onNewGame}
             />
         </div>
     );
@@ -170,22 +162,15 @@ function GameStateDisplay({
 /**
  * Renders terminal game-complete state.
  *
- * @param props - Public state in a terminal phase and optional reset callback.
+ * @param props - Public state in a terminal phase.
  * @returns React terminal summary.
  * @sideEffects None.
  */
-function TerminalState({
-    state,
-    onNewGame
-}: {
-    state: IGameStatePublic;
-    onNewGame: (() => void) | undefined;
-}): ReactElement {
+function TerminalState({ state }: { state: IGameStatePublic }): ReactElement {
     const phase = state.phase;
 
     return (
         <section className="table-surface terminal-table" aria-label="Euchre table">
-            <TableChrome onNewGame={onNewGame} />
             <div className="table-message">
                 <h1>Game complete</h1>
                 {phase.kind === "GameComplete" ? (
@@ -211,22 +196,19 @@ function TableView({
     hand,
     decision,
     controller,
-    humanTeam,
-    onNewGame
+    humanTeam
 }: {
     state: IGameStatePublic;
     hand: IHandStatePublic;
     decision: HumanPlayerDecision | undefined;
     controller: HumanPlayerController;
     humanTeam: Team;
-    onNewGame: (() => void) | undefined;
 }): ReactElement {
     const plays = getCurrentTrickPlays(state.phase);
     const handInteraction = getHandInteraction(decision, controller);
 
     return (
         <section className="table-surface" aria-label="Euchre table">
-            <TableChrome onNewGame={onNewGame} />
             <ScoreOverlay
                 ariaLabel="Hand score"
                 className="hand-score-overlay"
@@ -267,27 +249,6 @@ function TableView({
                 />
             </div>
         </section>
-    );
-}
-
-/**
- * Renders top-level table controls.
- *
- * @param props - Phase label and optional reset callback.
- * @returns Table chrome element.
- * @sideEffects None.
- */
-function TableChrome({
-    onNewGame
-}: {
-    onNewGame: (() => void) | undefined;
-}): ReactElement {
-    return (
-        <div className="table-chrome">
-            <button type="button" onClick={onNewGame} disabled={onNewGame === undefined}>
-                New game
-            </button>
-        </div>
     );
 }
 
@@ -374,7 +335,7 @@ function SeatPanel({
  * Renders seat-level status chips without reintroducing visible seat labels.
  *
  * @param props - Current public hand and relative player seat.
- * @returns Dealer and trump-maker chips for the seat, or null when no chips apply.
+ * @returns Reserved marker slot with dealer and trump-maker chips when applicable.
  * @sideEffects None.
  */
 function SeatChips({
@@ -383,13 +344,9 @@ function SeatChips({
 }: {
     hand: IHandStatePublic;
     player: Player;
-}): ReactElement | null {
+}): ReactElement {
     const isDealer = hand.dealer === player;
     const makerTrump = hand.maker === player ? hand.trump : undefined;
-
-    if (!isDealer && makerTrump === undefined) {
-        return null;
-    }
 
     return (
         <div className={`seat-chips ${isSideOpponent(player) ? "side-seat-chips" : ""}`} aria-label={`${formatPlayer(player)} markers`}>

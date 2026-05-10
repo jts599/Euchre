@@ -13,6 +13,7 @@ const DEFAULT_CONFIG: IGameConfig = {
     targetScore: 10,
     stickTheDealer: false
 };
+const DEFAULT_CARD_PLAY_DELAY_MS = 1000;
 
 /**
  * Players seated at each absolute position.
@@ -24,6 +25,7 @@ export type PlayerSeats = Readonly<Record<PositionalPlayer, IPlayer>>;
  */
 export interface IRunGameOptions {
     config?: Partial<IGameConfig>;
+    cardPlayDelayMs?: number;
     dealer?: PositionalPlayer;
     rng?: Rng;
     onPrivateStateChange?: (state: IGameStatePrivate) => void | Promise<void>;
@@ -45,6 +47,7 @@ interface IRunContext {
     players: PlayerSeats;
     options: IRunGameOptions;
     config: IGameConfig;
+    cardPlayDelayMs: number;
     rng: Rng;
 }
 
@@ -65,7 +68,7 @@ interface ITrumpSelection {
  * Runs full Euchre hands until one team reaches the target score.
  *
  * @param players - Player implementations keyed by absolute table position.
- * @param options - Optional config, RNG, dealer, and state observers.
+ * @param options - Optional config, card-play delay, RNG, dealer, and state observers.
  * @returns Final state, winner, final score, and number of hands started.
  * @throws Error when a player makes an illegal decision.
  * @sideEffects Calls player methods and observer callbacks.
@@ -423,6 +426,7 @@ async function playTrick(
             hand: currentHand,
             trick: { leader, currentPlayer: player, plays, tricksTaken }
         }));
+        await delayAfterCardPlayed(context.cardPlayDelayMs);
     }
 
     const winningPlay = getTrickWinner(plays, trump);
@@ -464,8 +468,24 @@ function createRunContext(players: PlayerSeats, options: IRunGameOptions): IRunC
         players,
         options,
         config: { ...DEFAULT_CONFIG, ...options.config },
+        cardPlayDelayMs: options.cardPlayDelayMs ?? DEFAULT_CARD_PLAY_DELAY_MS,
         rng: options.rng ?? Math.random
     };
+}
+
+/**
+ * Waits after an accepted card play so observers can display the played card.
+ *
+ * @param delayMs - Milliseconds to wait; zero or negative values skip the delay.
+ * @returns Promise resolved after the configured delay.
+ * @sideEffects Schedules a timer when delay is positive.
+ */
+async function delayAfterCardPlayed(delayMs: number): Promise<void> {
+    if (delayMs <= 0) {
+        return;
+    }
+
+    await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
 }
 
 /**

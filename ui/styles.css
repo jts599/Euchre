@@ -65,7 +65,7 @@ button:disabled {
     display: grid;
     gap: 14px;
     grid-template-areas:
-        "handScore partner chrome"
+        "handScore partner gameScore"
         "handScore partner gameScore"
         "left trick right"
         ". self .";
@@ -84,9 +84,8 @@ button:disabled {
 .empty-table,
 .terminal-table {
     grid-template-areas:
-        "chrome chrome chrome"
         ". message .";
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 1fr;
 }
 
 .table-message {
@@ -108,14 +107,6 @@ button:disabled {
 
 .table-message p {
     margin-top: 8px;
-}
-
-.table-chrome {
-    align-items: start;
-    display: flex;
-    grid-area: chrome;
-    justify-content: end;
-    min-width: 0;
 }
 
 .debug-state-card h2 {
@@ -191,9 +182,11 @@ button:disabled {
 
 .seat-left {
     grid-area: left;
+    flex-direction: row;
 }
 
 .seat-right {
+    flex-direction: row-reverse;
     grid-area: right;
 }
 
@@ -266,21 +259,25 @@ button:disabled {
 }
 
 .seat-chips {
+    align-items: center;
     display: flex;
     gap: 6px;
-    left: 50%;
+    justify-content: center;
+    min-height: 34px;
+    min-width: 104px;
     pointer-events: none;
-    position: absolute;
-    top: -4px;
-    transform: translate(-50%, -100%);
-    z-index: 2;
 }
 
 .side-seat-chips {
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%) rotate(90deg) translateY(-58px);
-    transform-origin: center;
+    align-content: center;
+    flex-wrap: wrap;
+    min-height: 80px;
+    min-width: 0;
+    width: clamp(72px, 8vw, 104px);
+}
+
+.side-seat-chips .table-chip {
+    transform: rotate(90deg);
 }
 
 .table-chip {
@@ -488,7 +485,6 @@ button:disabled {
 
     .table-surface {
         grid-template-areas:
-            "chrome"
             "handScore"
             "gameScore"
             "partner"
@@ -503,9 +499,7 @@ button:disabled {
 
     .empty-table,
     .terminal-table {
-        grid-template-areas:
-            "chrome"
-            "message";
+        grid-template-areas: "message";
     }
 
     .trick-grid {
@@ -522,11 +516,6 @@ button:disabled {
     .table-surface,
     .debug-layout .table-surface {
         min-height: calc(100vh - 20px);
-    }
-
-    .table-chrome {
-        align-items: stretch;
-        flex-direction: column;
     }
 
     .score-pair {

@@ -1,4 +1,3 @@
-import { ssrModuleExportsKey } from "vite/module-runner";
 import { ICard } from "../types/cards";
 import { Rank, Suit } from "../types/enums";
 import { IHandStatePublic } from "../types/handState";
@@ -12,7 +11,6 @@ import {
     ITrumpChoiceRequest,
     TrumpChoiceResult
 } from "../types/player";
-import { sleep } from "../players/helpers";
 
 /**
  * Constructor options for `BasicAIPlayer`.
@@ -58,8 +56,7 @@ export class BasicAIPlayer implements IPlayer {
      */
     public async doYouWantThisTrump(request: ITrumpCardRequest): Promise<ITrumpCardResult> {
         const handStrength = scoreHandForTrump(getPublicHand(request.gameState.phase).hand, request.proposedTrumpCard.suit);
-        await sleep(1000);
-        
+
         return {
             pickItUp: handStrength >= ORDER_UP_THRESHOLD,
             goAlone: false
@@ -79,7 +76,7 @@ export class BasicAIPlayer implements IPlayer {
         if (bestChoice.strength < TRUMP_CHOICE_THRESHOLD && !request.mustChooseTrump) {
             return null;
         }
-        await sleep(1000);
+
         return {
             suit: bestChoice.suit,
             goAlone: false
@@ -104,7 +101,7 @@ export class BasicAIPlayer implements IPlayer {
         if (trump === undefined) {
             return chooseRandom(request.legalCards, this.rng);
         }
-        await sleep(1000);
+
         return isLeading(request)
             ? chooseStrongestCard(request.legalCards, trump, this.rng)
             : chooseWeakestCard(request.legalCards, trump, this.rng);
@@ -121,7 +118,6 @@ export class BasicAIPlayer implements IPlayer {
     public async chooseDealerDiscard(request: IDealerDiscardRequest): Promise<ICard> {
         const trump = getPublicHand(request.gameState.phase).trump ?? request.pickedUpCard.suit;
 
-        await sleep(1000);
         return chooseWeakestCard(request.hand, trump, this.rng);
     }
 }
