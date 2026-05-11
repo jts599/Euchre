@@ -12,6 +12,17 @@ export const OPPONENT_CARD_BACK_ASSET_URL = new URL("./assets/cards/2B.svg", imp
 export const TEAMMATE_CARD_BACK_ASSET_URL = new URL("./assets/cards/2B-blue.svg", import.meta.url).href;
 
 /**
+ * Returns the SVG asset URL for one standalone suit symbol.
+ *
+ * @param suit - Suit to map to a local symbol asset.
+ * @returns Browser-resolvable SVG URL for the suit symbol.
+ * @sideEffects None.
+ */
+export function getSuitAssetUrl(suit: Suit): string {
+    return new URL(`./assets/suits/${getSuitAssetFileName(suit)}`, import.meta.url).href;
+}
+
+/**
  * Returns the SVG asset URL for one visible card.
  *
  * @param card - Card to map to an SVG asset.
@@ -61,5 +72,25 @@ function getSuitAssetCode(suit: Suit): string {
             return "C";
         case Suit.Spades:
             return "S";
+    }
+}
+
+/**
+ * Returns the suit symbol file name for a suit.
+ *
+ * @param suit - Suit to map to the local symbol asset naming convention.
+ * @returns SVG file name for the suit symbol.
+ * @sideEffects None.
+ */
+function getSuitAssetFileName(suit: Suit): string {
+    switch (suit) {
+        case Suit.Hearts:
+            return "hearts.svg";
+        case Suit.Diamonds:
+            return "diamonds.svg";
+        case Suit.Clubs:
+            return "clubs.svg";
+        case Suit.Spades:
+            return "spades.svg";
     }
 }

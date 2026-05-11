@@ -164,7 +164,7 @@ describe("HumanPlayerController UI", () => {
         expect(getVisibleHandCardLabels()).toEqual(["9 Hearts", "10 Hearts", "J Diamonds", "A Spades"]);
     });
 
-    it("renders hand score from current trick counts", () => {
+    it("renders per-player status panes from current trick counts", () => {
         const controller = new HumanPlayerController();
 
         render(<HumanPlayerView controller={controller} />);
@@ -172,11 +172,29 @@ describe("HumanPlayerController UI", () => {
             controller.onStateChange(createPlayingState([aceSpades, nineHearts, tenHearts]));
         });
 
-        const handScore = screen.getByLabelText("Hand score");
+        expect(screen.queryByLabelText("Hand score")).not.toBeInTheDocument();
+        expect(screen.getByLabelText("You status")).toBeInTheDocument();
+        expect(screen.getByLabelText("Partner status")).toBeInTheDocument();
+        expect(screen.getByLabelText("Left opponent status")).toBeInTheDocument();
+        expect(screen.getByLabelText("Right opponent status")).toBeInTheDocument();
+        expect(screen.getByLabelText("You tricks won")).toHaveTextContent("1");
+        expect(screen.getByLabelText("Left opponent tricks won")).toHaveTextContent("2");
+        expect(screen.getByLabelText("Partner tricks won")).toHaveTextContent("0");
+        expect(screen.getByLabelText("Right opponent tricks won")).toHaveTextContent("0");
+    });
 
-        expect(within(handScore).queryByText("Hand")).not.toBeInTheDocument();
-        expect(within(handScore).getByText("1")).toBeInTheDocument();
-        expect(within(handScore).getByText("2")).toBeInTheDocument();
+    it("renders per-player status panes from completed trick winners", () => {
+        const controller = new HumanPlayerController();
+
+        render(<HumanPlayerView controller={controller} />);
+        act(() => {
+            controller.onStateChange(createScoringState([aceSpades, nineHearts, tenHearts]));
+        });
+
+        expect(screen.getByLabelText("You tricks won")).toHaveTextContent("1");
+        expect(screen.getByLabelText("Partner tricks won")).toHaveTextContent("1");
+        expect(screen.getByLabelText("Left opponent tricks won")).toHaveTextContent("1");
+        expect(screen.getByLabelText("Right opponent tricks won")).toHaveTextContent("0");
     });
 
     it("stacks and rotates side opponent hidden hands", () => {
@@ -192,7 +210,7 @@ describe("HumanPlayerController UI", () => {
         expect(screen.getByLabelText("Partner hidden cards")).not.toHaveClass("sideways-backs");
     });
 
-    it("renders dealer and maker trump chips without visible seat labels", () => {
+    it("renders active and inactive dealer and maker status chips without visible seat labels", () => {
         const controller = new HumanPlayerController();
 
         render(<HumanPlayerView controller={controller} />);
@@ -200,8 +218,14 @@ describe("HumanPlayerController UI", () => {
             controller.onStateChange(createPublicState([nineHearts, tenHearts], Suit.Hearts));
         });
 
-        expect(screen.getByText("Dealer")).toBeInTheDocument();
-        expect(screen.getByText(Suit.Hearts)).toBeInTheDocument();
+        expect(screen.getByLabelText("Partner dealer active")).toHaveClass("active-dealer-chip");
+        expect(screen.getByLabelText("You dealer inactive")).toHaveClass("inactive-dealer-chip");
+        expect(screen.getByLabelText("Left opponent maker Hearts")).toHaveClass("active-maker-chip");
+        expect(screen.getByLabelText("Left opponent maker Hearts")).not.toHaveTextContent(Suit.Hearts);
+        expect(within(screen.getByLabelText("Left opponent maker Hearts")).getByRole("img", { name: Suit.Hearts })).toHaveClass("maker-suit-symbol");
+        expect(screen.getByLabelText("You maker inactive")).toHaveClass("inactive-maker-chip");
+        expect(screen.getByLabelText("Left opponent status")).toHaveClass("side-status-pane");
+        expect(screen.getByLabelText("Right opponent status")).toHaveClass("side-status-pane");
         expect(screen.queryByText("Partner")).not.toBeInTheDocument();
         expect(screen.queryByText("Left opponent")).not.toBeInTheDocument();
         expect(screen.queryByText("Right opponent")).not.toBeInTheDocument();
@@ -327,6 +351,7 @@ function createPlayingState(hand: readonly ICard[]): IGameStatePublic {
                 dealer: Player.Partner,
                 playedCards: [],
                 completedTricks: [],
+                maker: Player.LeftOpponent,
                 trump: Suit.Spades
             },
             trick: {
@@ -340,6 +365,40 @@ function createPlayingState(hand: readonly ICard[]): IGameStatePublic {
                     [Player.RightOpponent]: 0
                 }
             }
+        }
+    };
+}
+
+/**
+ * Creates a hand-scoring public state with completed tricks for UI tests.
+ *
+ * @param hand - Cards visible to the human player.
+ * @returns Public game state in hand scoring.
+ * @sideEffects None.
+ */
+function createScoringState(hand: readonly ICard[]): IGameStatePublic {
+    const completedTricks = [
+        { leader: Player.LeftOpponent, winner: Player.Self, plays: [] },
+        { leader: Player.Self, winner: Player.Partner, plays: [] },
+        { leader: Player.Partner, winner: Player.LeftOpponent, plays: [] }
+    ];
+
+    return {
+        ...createPublicState(hand, Suit.Spades),
+        phase: {
+            kind: "ScoringHand",
+            hand: {
+                hand,
+                upCard: jackSpades,
+                dealer: Player.Partner,
+                maker: Player.LeftOpponent,
+                playedCards: [],
+                completedTricks,
+                trump: Suit.Spades
+            },
+            pointsAwarded: 1,
+            scoringTeam: Team.NorthSouth,
+            completedTricks
         }
     };
 }

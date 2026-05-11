@@ -5,7 +5,7 @@ import { Player, Rank, Suit } from "../types/enums";
 import { GamePhasePublic, IGameStatePublic, Team } from "../types/gameState";
 import { IHandStatePublic } from "../types/handState";
 import { ICompletedTrickPublic } from "../types/trickState";
-import { OPPONENT_CARD_BACK_ASSET_URL, TEAMMATE_CARD_BACK_ASSET_URL, getCardAssetUrl } from "./cardAssets";
+import { OPPONENT_CARD_BACK_ASSET_URL, TEAMMATE_CARD_BACK_ASSET_URL, getCardAssetUrl, getSuitAssetUrl } from "./cardAssets";
 import { HumanPlayerController, HumanPlayerDecision } from "./HumanPlayerController";
 import { useHumanPlayerController } from "./useHumanPlayerController";
 
@@ -210,11 +210,6 @@ function TableView({
     return (
         <section className="table-surface" aria-label="Euchre table">
             <ScoreOverlay
-                ariaLabel="Hand score"
-                className="hand-score-overlay"
-                score={getHandScore(state.phase, hand)}
-            />
-            <ScoreOverlay
                 ariaLabel="Game score"
                 className="game-score-overlay"
                 score={getTeamScore(state.score, humanTeam)}
@@ -240,7 +235,7 @@ function TableView({
                 <DecisionControls controller={controller} decision={decision} />
             </div>
             <div className="self-seat" aria-label="Your hand">
-                <SeatChips hand={hand} player={Player.Self} />
+                <PlayerStatusPane hand={hand} phase={state.phase} player={Player.Self} />
                 <CardRow
                     cards={getDisplayHandCards(hand, decision)}
                     current={isCurrentTurn(state.phase, Player.Self)}
@@ -319,7 +314,7 @@ function SeatPanel({
 }): ReactElement {
     return (
         <div className={`seat-panel ${getSeatClass(player)}`} aria-label={`${formatPlayer(player)} seat`}>
-            <SeatChips hand={hand} player={player} />
+            <PlayerStatusPane hand={hand} phase={state.phase} player={player} />
             <CardBackRow
                 count={getVisibleBackCount(hand, state.phase, player)}
                 current={isCurrentTurn(state.phase, player)}
@@ -332,26 +327,44 @@ function SeatPanel({
 }
 
 /**
- * Renders seat-level status chips without reintroducing visible seat labels.
+ * Renders compact per-player hand status behind a seat's cards.
  *
- * @param props - Current public hand and relative player seat.
- * @returns Reserved marker slot with dealer and trump-maker chips when applicable.
+ * @param props - Current hand, phase, and relative player seat.
+ * @returns Seat status pane with dealer, maker, and individual trick count.
  * @sideEffects None.
  */
-function SeatChips({
+function PlayerStatusPane({
     hand,
+    phase,
     player
 }: {
     hand: IHandStatePublic;
+    phase: GamePhasePublic;
     player: Player;
 }): ReactElement {
     const isDealer = hand.dealer === player;
     const makerTrump = hand.maker === player ? hand.trump : undefined;
+    const trickCount = getPlayerTrickCount(phase, hand, player);
+    const sideClass = isSideOpponent(player) ? "side-status-pane" : "";
+    const teamClass = isHumanSide(player) ? "status-team-blue" : "status-team-red";
 
     return (
-        <div className={`seat-chips ${isSideOpponent(player) ? "side-seat-chips" : ""}`} aria-label={`${formatPlayer(player)} markers`}>
-            {isDealer ? <span className="table-chip dealer-chip">Dealer</span> : null}
-            {makerTrump === undefined ? null : <span className="table-chip trump-chip">{formatSuit(makerTrump)}</span>}
+        <div className={`player-status-pane ${sideClass}`} aria-label={`${formatPlayer(player)} status`}>
+            <span
+                aria-label={`${formatPlayer(player)} dealer ${isDealer ? "active" : "inactive"}`}
+                className={`status-chip dealer-status-chip ${isDealer ? "active-dealer-chip" : "inactive-dealer-chip"}`}
+            >
+                D
+            </span>
+            <span
+                aria-label={makerTrump === undefined ? `${formatPlayer(player)} maker inactive` : `${formatPlayer(player)} maker ${formatSuit(makerTrump)}`}
+                className={`status-chip maker-status-chip ${teamClass} ${makerTrump === undefined ? "inactive-maker-chip" : "active-maker-chip"}`}
+            >
+                {makerTrump === undefined ? null : <img alt={formatSuit(makerTrump)} className="maker-suit-symbol" src={getSuitAssetUrl(makerTrump)} />}
+            </span>
+            <span className="trick-count-chip" aria-label={`${formatPlayer(player)} tricks won`}>
+                {trickCount}
+            </span>
         </div>
     );
 }
@@ -700,6 +713,23 @@ function aggregateTrickCounts(counts: readonly (readonly [Player, number])[]): I
 
         return { ...score, opponents: score.opponents + count };
     }, { yourTeam: 0, opponents: 0 });
+}
+
+/**
+ * Returns the trick count for one relative player in the current hand.
+ *
+ * @param phase - Public game phase.
+ * @param hand - Public hand state.
+ * @param player - Relative player to count.
+ * @returns Number of tricks won by that player.
+ * @sideEffects None.
+ */
+function getPlayerTrickCount(phase: GamePhasePublic, hand: IHandStatePublic, player: Player): number {
+    if (phase.kind === "PlayingTrick") {
+        return phase.trick.tricksTaken[player] ?? 0;
+    }
+
+    return hand.completedTricks.filter((trick) => trick.winner === player).length;
 }
 
 /**
